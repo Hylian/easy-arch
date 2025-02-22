@@ -5,7 +5,6 @@ ESP="/dev/disk/by-partlabel/EFI\\x20system\\x20partition"
 cryptsetup open "$CRYPTROOT" cryptroot
 BTRFS="/dev/mapper/cryptroot"
 
-umount /mnt
 mountopts="ssd,noatime,compress-force=zstd:3,discard=async"
 mount -o "$mountopts",subvol=@ "$BTRFS" /mnt
 mkdir -p /mnt/{home,root,srv,.snapshots,var/{log,cache/pacman/pkg},boot}
