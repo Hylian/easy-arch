@@ -9,7 +9,7 @@ clear
 # Cosmetics (colours for text).
 BOLD='\e[1m'
 BRED='\e[91m'
-BBLUE='\e[34m'  
+BBLUE='\e[34m'
 BGREEN='\e[92m'
 BYELLOW='\e[93m'
 RESET='\e[0m'
@@ -62,7 +62,7 @@ kernel_selector () {
     info_print "2) Hardened: A security-focused Linux kernel"
     info_print "3) Longterm: Long-term support (LTS) Linux kernel"
     info_print "4) Zen Kernel: A Linux kernel optimized for desktop usage"
-    input_print "Please select the number of the corresponding kernel (e.g. 1): " 
+    input_print "Please select the number of the corresponding kernel (e.g. 1): "
     read -r kernel_choice
     case $kernel_choice in
         1 ) kernel="linux"
@@ -152,7 +152,7 @@ userpass_selector () {
         return 1
     fi
     echo
-    input_print "Please enter the password again (you're not going to see it): " 
+    input_print "Please enter the password again (you're not going to see it): "
     read -r -s userpass2
     echo
     if [[ "$userpass" != "$userpass2" ]]; then
@@ -173,7 +173,7 @@ rootpass_selector () {
         return 1
     fi
     echo
-    input_print "Please enter the password again (you're not going to see it): " 
+    input_print "Please enter the password again (you're not going to see it): "
     read -r -s rootpass2
     echo
     if [[ "$rootpass" != "$rootpass2" ]]; then
@@ -291,40 +291,42 @@ until hostname_selector; do : ; done
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
 
-# Warn user about deletion of old partition scheme.
-input_print "This will delete the current partition table on $DISK once installation starts. Do you agree [y/N]?: "
-read -r disk_response
-if ! [[ "${disk_response,,}" =~ ^(yes|y)$ ]]; then
+ESP=$(parted "$DISK" print | awk '/EFI System/ {print $1}')
+input_print "Detected $ESPas the EFI boot partition. Is this correct [y/N]?: "
+read -r boot_response
+if ! [[ "${boot_response,,}" =~ ^(yes|y)$ ]]; then
     error_print "Quitting."
     exit
 fi
-info_print "Wiping $DISK."
-wipefs -af "$DISK" &>/dev/null
-sgdisk -Zo "$DISK" &>/dev/null
 
-# Creating a new partition scheme.
-info_print "Creating the partitions on $DISK."
-parted -s "$DISK" \
-    mklabel gpt \
-    mkpart ESP fat32 1MiB 1025MiB \
-    set 1 esp on \
-    mkpart CRYPTROOT 1025MiB 100% \
+FREE_SPACE=$(parted "$DISK" unit MB print free | awk '/Free Space/ {print $1}' | awk 'NR>1 {print $1, $2}' | sort -k2,2n | tail -1)
+input_print "$FREE_SPACE of free space detected. Installing to this space. Is this correct [y/N]?: "
+read -r free_space_response
+if ! [[ "${free_space_response,,}" =~ ^(yes|y)$ ]]; then
+    error_print "Quitting."
+    exit
+fi
 
-ESP="/dev/disk/by-partlabel/ESP"
+info_print "OK! Creating CRYPTROOT partition on $DISK."
+sgdisk -n 0:0:0 -c 0:"CRYPTROOT" "$DISK"
 CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
+
+blkid
+input_print "Partition created. Look good [y/N]?: "
+read -r post_partition_response
+if ! [[ "${post_partition_response,,}" =~ ^(yes|y)$ ]]; then
+    error_print "Quitting."
+    exit
+fi
 
 # Informing the Kernel of the changes.
 info_print "Informing the Kernel about the disk changes."
 partprobe "$DISK"
 
-# Formatting the ESP as FAT32.
-info_print "Formatting the EFI Partition as FAT32."
-mkfs.fat -F 32 "$ESP" &>/dev/null
-
 # Creating a LUKS Container for the root partition.
 info_print "Creating LUKS Container for the root partition."
 echo -n "$password" | cryptsetup luksFormat "$CRYPTROOT" -d - &>/dev/null
-echo -n "$password" | cryptsetup open "$CRYPTROOT" cryptroot -d - 
+echo -n "$password" | cryptsetup open "$CRYPTROOT" cryptroot -d -
 BTRFS="/dev/mapper/cryptroot"
 
 # Formatting the LUKS Container as BTRFS.
@@ -359,7 +361,7 @@ microcode_detector
 
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
-pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs grub grub-btrfs rsync efibootmgr snapper reflector snap-pac zram-generator sudo &>/dev/null
+pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs rsync efibootmgr snapper refind reflector snap-pac zram-generator sudo &>/dev/null
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
@@ -399,8 +401,8 @@ UUID=$(blkid -s UUID -o value $CRYPTROOT)
 sed -i "\,^GRUB_CMDLINE_LINUX=\"\",s,\",&rd.luks.name=$UUID=cryptroot root=$BTRFS," /mnt/etc/default/grub
 
 # Configuring the system.
-info_print "Configuring the system (timezone, system clock, initramfs, Snapper, GRUB)."
-arch-chroot /mnt /bin/bash -e <<EOF
+info_print "Configuring the system (timezone, system clock, initramfs, Snapper, refind)."
+arch-chroot /mnt /bin/bash -e <<TOPEOF
 
     # Setting up timezone.
     ln -sf /usr/share/zoneinfo/$(curl -s http://ip-api.com/line?fields=timezone) /etc/localtime &>/dev/null
@@ -423,12 +425,62 @@ arch-chroot /mnt /bin/bash -e <<EOF
     mount -a &>/dev/null
     chmod 750 /.snapshots
 
-    # Installing GRUB.
-    grub-install --target=x86_64-efi --efi-directory=/boot/ --bootloader-id=GRUB &>/dev/null
+    su $username
+    cd ~
+    git clone https://aur.archlinux.org/paru.git
+    cd paru
+    makepkg -si
+    cd .. && sudo rm -dR paru
+    paru -S shim-signed
+    exit
 
-    # Creating grub config file.
-    grub-mkconfig -o /boot/grub/grub.cfg &>/dev/null
+    sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
+    mkdir /etc/pacman.d/hooks
 
+    cat << EOF > /etc/pacman.d/hooks/999-sign_kernel_for_secureboot.hook
+    """
+    [Trigger]
+    Operation = Install
+    Operation = Upgrade
+    Type = Package
+    Target = linux
+    Target = linux-lts
+    Target = linux-hardened
+    Target = linux-zen
+    [Action]
+    Description = Signing kernel with Machine Owner Key for Secure Boot
+    When = PostTransaction
+    Exec = /usr/bin/find /boot/ -maxdepth 1 -name 'vmlinuz-*' -exec /usr/bin/sh -c '/usr/bin/sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output {} {}'
+    Depends = sbsigntools
+    Depends = findutils
+    Depends = grep
+    EOF
+
+    cat << EOF > /etc/pacman.d/hooks/refind.hook
+    [Trigger]
+    Operation=Upgrade
+    Type=Package
+    Target=refind
+    [Action]
+    Description = Updating rEFInd on ESP
+    When=PostTransaction
+    Exec=/usr/bin/refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
+    EOF
+
+TOPEOF
+
+UUID=$(blkid -s UUID -o value $CRYPTROOT)
+cat << EOF >> /mnt/boot/EFI/refind/refind.conf
+    menuentry "Arch Linux" {
+        volume   "Arch Linux"
+        loader   /vmlinuz-linux
+        initrd   /initramfs-linux.img
+        options  "rd.luks.name=$UUID=crypt root=/dev/mapper/crypt rootflags=subvol=@ rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
+        submenuentry "Boot using fallback initramfs" {
+            initrd /boot/initramfs-linux-fallback.img
+        }
+    }
+    EOF
 EOF
 
 # Setting root password.
@@ -475,7 +527,7 @@ sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /mnt/e
 
 # Enabling various services.
 info_print "Enabling Reflector, automatic snapshots, BTRFS scrubbing and systemd-oomd."
-services=(reflector.timer snapper-timeline.timer snapper-cleanup.timer btrfs-scrub@-.timer btrfs-scrub@home.timer btrfs-scrub@var-log.timer btrfs-scrub@\\x2esnapshots.timer grub-btrfsd.service systemd-oomd)
+services=(reflector.timer snapper-timeline.timer snapper-cleanup.timer btrfs-scrub@-.timer btrfs-scrub@home.timer btrfs-scrub@var-log.timer btrfs-scrub@\\x2esnapshots.timer systemd-oomd)
 for service in "${services[@]}"; do
     systemctl enable "$service" --root=/mnt &>/dev/null
 done
