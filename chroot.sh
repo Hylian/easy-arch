@@ -1,12 +1,7 @@
 #!/usr/bin/env -S bash -e
 
-# Fixing annoying issue that breaks GitHub Actions
-# shellcheck disable=SC2001
-
-# Cleaning the TTY.
-clear
-
 CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
+ESP="/dev/disk/by-partlabel/EFI\\x20system\\x20partition"
 cryptsetup open "$CRYPTROOT" cryptroot
 BTRFS="/dev/mapper/cryptroot"
 
