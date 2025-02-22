@@ -470,7 +470,8 @@ arch-chroot /mnt /bin/bash -e <<TOPEOF
 TOPEOF
 
 UUID=$(blkid -s UUID -o value $CRYPTROOT)
-cat << EOF >> /mnt/boot/EFI/refind/refind.conf
+# TODO not /mnt/boot
+cat << EOF >> /boot/EFI/refind/refind.conf
     menuentry "Arch Linux" {
         volume   "Arch Linux"
         loader   /vmlinuz-linux
