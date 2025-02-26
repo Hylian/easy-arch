@@ -103,8 +103,10 @@ network_installer () {
             systemctl enable iwd --root=/mnt &>/dev/null
             ;;
         2 ) info_print "Installing and enabling NetworkManager."
-            pacstrap /mnt networkmanager >/dev/null
+            pacstrap /mnt networkmanager iwd >/dev/null
             systemctl enable NetworkManager --root=/mnt &>/dev/null
+            echo "[device]" > /mnt/etc/NetworkManager/conf.d/nm.conf
+            echo "wifi.backend=iwd" >> /mnt/etc/NetworkManager/conf.d/nm.conf
             ;;
         3 ) info_print "Installing and enabling wpa_supplicant and dhcpcd."
             pacstrap /mnt wpa_supplicant dhcpcd >/dev/null
@@ -299,8 +301,8 @@ if ! [[ "${boot_response,,}" =~ ^(yes|y)$ ]]; then
     exit
 fi
 
-FREE_SPACE=$(parted "$DISK" unit MB print free | awk '/Free Space/ {print $1}' | awk 'NR>1 {print $1, $2}' | sort -k2,2n | tail -1)
-input_print "$FREE_SPACE of free space detected. Installing to this space. Is this correct [y/N]?: "
+echo $(parted "$DISK" unit MB print free)
+input_print "Installing to largest free space. Is this correct [y/N]?: "
 read -r free_space_response
 if ! [[ "${free_space_response,,}" =~ ^(yes|y)$ ]]; then
     error_print "Quitting."
@@ -361,7 +363,7 @@ microcode_detector
 
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
-pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs rsync efibootmgr snapper refind reflector snap-pac zram-generator sudo &>/dev/null
+pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs mesa rsync efibootmgr snapper refind reflector snap-pac zram-generator sudo &>/dev/null
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
@@ -391,97 +393,100 @@ network_installer
 
 # Configuring /etc/mkinitcpio.conf.
 info_print "Configuring /etc/mkinitcpio.conf."
+sed -i 's/MODULES=()/MODULES=(amdgpu)/' /mnt/etc/mkinitcpio.conf
 cat > /mnt/etc/mkinitcpio.conf <<EOF
-HOOKS=(systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems)
+HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt resume filesystems fsck)
 EOF
-
-# Setting up LUKS2 encryption in grub.
-info_print "Setting up grub config."
-UUID=$(blkid -s UUID -o value $CRYPTROOT)
-sed -i "\,^GRUB_CMDLINE_LINUX=\"\",s,\",&rd.luks.name=$UUID=cryptroot root=$BTRFS," /mnt/etc/default/grub
 
 # Configuring the system.
 info_print "Configuring the system (timezone, system clock, initramfs, Snapper, refind)."
-arch-chroot /mnt /bin/bash -e <<TOPEOF
 
-    # Setting up timezone.
-    ln -sf /usr/share/zoneinfo/$(curl -s http://ip-api.com/line?fields=timezone) /etc/localtime &>/dev/null
+echo 'PRUNENAMES = ".snapshots"' >> /mnt/etc/updatedb.conf
 
-    # Setting up clock.
-    hwclock --systohc
+# ============
+# BEGIN CHROOT
+# ============
+arch-chroot /mnt
 
-    # Generating locales.
-    locale-gen &>/dev/null
+# Setting up timezone.
+ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime &>/dev/null
 
-    # Generating a new initramfs.
-    mkinitcpio -P &>/dev/null
+# Setting up clock.
+hwclock --systohc
 
-    # Snapper configuration.
-    umount /.snapshots
-    rm -r /.snapshots
-    snapper --no-dbus -c root create-config /
-    btrfs subvolume delete /.snapshots &>/dev/null
-    mkdir /.snapshots
-    mount -a &>/dev/null
-    chmod 750 /.snapshots
+# Generating locales.
+locale-gen &>/dev/null
 
-    su $username
-    cd ~
-    git clone https://aur.archlinux.org/paru.git
-    cd paru
-    makepkg -si
-    cd .. && sudo rm -dR paru
-    paru -S shim-signed
-    exit
+# Generating a new initramfs.
+mkinitcpio -P &>/dev/null
 
-    sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
-    mkdir /etc/pacman.d/hooks
+# Snapper configuration.
+umount /.snapshots
+rm -r /.snapshots
+snapper --no-dbus -c root create-config /
+btrfs subvolume delete /.snapshots &>/dev/null
+mkdir /.snapshots
+mount -a &>/dev/null
+chmod 750 /.snapshots
 
-    cat << EOF > /etc/pacman.d/hooks/999-sign_kernel_for_secureboot.hook
-    """
-    [Trigger]
-    Operation = Install
-    Operation = Upgrade
-    Type = Package
-    Target = linux
-    Target = linux-lts
-    Target = linux-hardened
-    Target = linux-zen
-    [Action]
-    Description = Signing kernel with Machine Owner Key for Secure Boot
-    When = PostTransaction
-    Exec = /usr/bin/find /boot/ -maxdepth 1 -name 'vmlinuz-*' -exec /usr/bin/sh -c '/usr/bin/sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output {} {}'
-    Depends = sbsigntools
-    Depends = findutils
-    Depends = grep
-    EOF
+cd /tmp
+git clone https://aur.archlinux.org/paru.git
+cd paru
+makepkg -si
+cd .. && sudo rm -dR paru
+paru -S shim-signed
 
-    cat << EOF > /etc/pacman.d/hooks/refind.hook
-    [Trigger]
-    Operation=Upgrade
-    Type=Package
-    Target=refind
-    [Action]
-    Description = Updating rEFInd on ESP
-    When=PostTransaction
-    Exec=/usr/bin/refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
-    EOF
+refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
+sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
 
-TOPEOF
+exit
+# ==========
+# END CHROOT
+# ==========
+
+mkdir /mnt/etc/pacman.d/hooks
+
+cat << EOF > /mnt/etc/pacman.d/hooks/999-sign_kernel_for_secureboot.hook
+"""
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = linux
+Target = linux-lts
+Target = linux-hardened
+Target = linux-zen
+[Action]
+Description = Signing kernel with Machine Owner Key for Secure Boot
+When = PostTransaction
+Exec = /usr/bin/find /boot/ -maxdepth 1 -name 'vmlinuz-*' -exec /usr/bin/sh -c '/usr/bin/sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output {} {}'
+Depends = sbsigntools
+Depends = findutils
+Depends = grep
+EOF
+
+cat << EOF > /mnt/etc/pacman.d/hooks/refind.hook
+[Trigger]
+Operation=Upgrade
+Type=Package
+Target=refind
+[Action]
+Description = Updating rEFInd on ESP
+When=PostTransaction
+Exec=/usr/bin/refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
+EOF
 
 UUID=$(blkid -s UUID -o value $CRYPTROOT)
-# TODO not /mnt/boot
 cat << EOF >> /boot/EFI/refind/refind.conf
     menuentry "Arch Linux" {
         volume   "Arch Linux"
         loader   /vmlinuz-linux
         initrd   /initramfs-linux.img
-        options  "rd.luks.name=$UUID=crypt root=/dev/mapper/crypt rootflags=subvol=@ rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
+        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
         submenuentry "Boot using fallback initramfs" {
             initrd /boot/initramfs-linux-fallback.img
         }
     }
-    EOF
 EOF
 
 # Setting root password.
@@ -514,6 +519,11 @@ Description = Backing up /boot...
 When = PostTransaction
 Exec = /usr/bin/rsync -a --delete /boot /.bootbackup
 EOF
+
+# Laptop Battery Life Improvements
+echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf
+if [ $(lsmod | grep '^iwl.vm' | awk '{print $1}') == "iwlmvm" ]; then echo "options iwlwifi power_save=1" > /mnt/etc/modprobe.d/iwlwifi.conf; echo "options iwlmvm power_scheme=3" >> /mnt/etc/modprobe.d/iwlwifi.conf; fi
+if [ $(lsmod | grep '^iwl.vm' | awk '{print $1}') == "iwldvm" ]; then echo "options iwldvm force_cam=0" >> /mnt/etc/modprobe.d/iwlwifi.conf; fi
 
 # ZRAM configuration.
 info_print "Configuring ZRAM."
