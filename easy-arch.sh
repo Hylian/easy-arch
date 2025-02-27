@@ -342,15 +342,17 @@ mount "$BTRFS" /mnt
 info_print "Creating BTRFS subvolumes."
 subvols=(root snapshots pkg home tmp srv swap btrfs)
 for subvol in '' "${subvols[@]}"; do
-    btrfs su cr /mnt/@"$subvol" &>/dev/null
+    btrfs su cr /mnt/@"$subvol"
 done
 
+info_print "Subvolume creation complete."
+ls /mnt
 
 # Mounting the newly created subvolumes.
 umount /mnt
 
-
 info_print "Mounting the newly created subvolumes."
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/cryptroot /mnt
 mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,var/tmp,.snapshots,.swapvol,btrfs,srv}
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt/root
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
@@ -358,7 +360,7 @@ mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,d
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/cryptroot /mnt/var/tmp
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/cryptroot /mnt/srv
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
-mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/crypt /mnt/.swapvol
+mount -o compress=no,ssd,discard=async,subvol=@swap /dev/mapper/crypt /mnt/.swapvol
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/crypt /mnt/btrfs
 chmod 750 /mnt/root
 
