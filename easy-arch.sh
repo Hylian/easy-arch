@@ -351,7 +351,7 @@ umount /mnt
 
 
 info_print "Mounting the newly created subvolumes."
-mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,var/tmp,.snapshots,.swapvol,btrfs}
+mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,var/tmp,.snapshots,.swapvol,btrfs,srv}
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt/root
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
