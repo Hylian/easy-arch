@@ -293,8 +293,8 @@ until hostname_selector; do : ; done
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
 
-ESP=$(parted "$DISK" print | awk '/EFI/ {print $1}')
-input_print "Detected $ESPas the EFI boot partition. Is this correct [y/N]?: "
+ESP="${DISK}p1"
+input_print "Using $ESP as the EFI boot partition. Is this correct [y/N]?: "
 read -r boot_response
 if ! [[ "${boot_response,,}" =~ ^(yes|y)$ ]]; then
     error_print "Quitting."
