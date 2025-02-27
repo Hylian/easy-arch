@@ -340,8 +340,7 @@ mount "$BTRFS" /mnt
 
 # Creating BTRFS subvolumes.
 info_print "Creating BTRFS subvolumes."
-btrfs sub create /mnt/@
-subvols=(snapshots pkg home tmp srv swap btrfs)
+subvols=(root snapshots pkg home tmp srv swap btrfs)
 for subvol in '' "${subvols[@]}"; do
     btrfs su cr /mnt/@"$subvol" &>/dev/null
 done
@@ -352,7 +351,7 @@ umount /mnt
 
 
 info_print "Mounting the newly created subvolumes."
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/cryptroot /mnt
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt
 mkdir -p /mnt/{boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
