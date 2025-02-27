@@ -351,8 +351,8 @@ umount /mnt
 
 
 info_print "Mounting the newly created subvolumes."
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt
-mkdir -p /mnt/{boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
+mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt/root
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/cryptroot /mnt/var/tmp
@@ -360,6 +360,7 @@ mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
 mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/crypt /mnt/.swapvol
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/crypt /mnt/btrfs
+chmod 750 /mnt/root
 
 # Create Swapfile
 truncate -s 0 /mnt/.swapvol/swapfile
