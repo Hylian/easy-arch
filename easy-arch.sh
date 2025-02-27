@@ -352,21 +352,21 @@ umount /mnt
 
 info_print "Mounting the newly created subvolumes."
 mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt/root
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/cryptroot /mnt/var/tmp
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/cryptroot /mnt/srv
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt/root
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/cryptroot /mnt/var/tmp
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/cryptroot /mnt/srv
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
 mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/crypt /mnt/.swapvol
-mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/crypt /mnt/btrfs
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/crypt /mnt/btrfs
 chmod 750 /mnt/root
 
 # Create Swapfile
 truncate -s 0 /mnt/.swapvol/swapfile
 chattr +C /mnt/.swapvol/swapfile
 btrfs property set /mnt/.swapvol/swapfile compression none
-fallocate -l 16G /mnt/.swapvol/swapfile
+fallocate -l 68G /mnt/.swapvol/swapfile
 chmod 600 /mnt/.swapvol/swapfile
 mkswap /mnt/.swapvol/swapfile
 swapon /mnt/.swapvol/swapfile
