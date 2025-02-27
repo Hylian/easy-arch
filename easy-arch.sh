@@ -274,6 +274,15 @@ do
     break
 done
 
+ESP="${DISK}p1"
+info_print "DISK=${DISK} ESP=${ESP}"
+input_print "Using ${ESP} as the EFI boot partition. Is this correct [y/N]?: "
+read -r boot_response
+if ! [[ "${boot_response,,}" =~ ^(yes|y)$ ]]; then
+    error_print "Quitting."
+    exit
+fi
+
 # Setting up LUKS password.
 until lukspass_selector; do : ; done
 
@@ -292,14 +301,6 @@ until hostname_selector; do : ; done
 # User sets up the user/root passwords.
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
-
-ESP="${DISK}p1"
-input_print "Using $ESP as the EFI boot partition. Is this correct [y/N]?: "
-read -r boot_response
-if ! [[ "${boot_response,,}" =~ ^(yes|y)$ ]]; then
-    error_print "Quitting."
-    exit
-fi
 
 echo $(parted "$DISK" unit MB print free)
 input_print "Installing to largest free space. Is this correct [y/N]?: "
@@ -356,7 +357,7 @@ chmod 750 /mnt/root
 mount -o "$mountopts",subvol=@snapshots "$BTRFS" /mnt/.snapshots
 mount -o "$mountopts",subvol=@var_pkgs "$BTRFS" /mnt/var/cache/pacman/pkg
 chattr +C /mnt/var/log
-mount "$ESP" /mnt/boot/
+mount "${ESP}" /mnt/boot/
 
 # Checking the microcode to install.
 microcode_detector
