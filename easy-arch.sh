@@ -400,7 +400,7 @@ network_installer
 info_print "Configuring /etc/mkinitcpio.conf."
 sed -i 's/MODULES=()/MODULES=(amdgpu)/' /mnt/etc/mkinitcpio.conf
 cat > /mnt/etc/mkinitcpio.conf <<EOF
-HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt resume filesystems fsck)
+HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)
 EOF
 
 # Configuring the system.
@@ -489,7 +489,7 @@ cat << EOF >> /boot/EFI/refind/refind.conf
         volume   "Arch Linux"
         loader   /vmlinuz-linux
         initrd   /initramfs-linux.img
-        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
+        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
         submenuentry "Boot using fallback initramfs" {
             initrd /boot/initramfs-linux-fallback.img
         }
