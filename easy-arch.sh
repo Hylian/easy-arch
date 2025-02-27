@@ -362,6 +362,9 @@ mount "${ESP}" /mnt/boot/
 # Checking the microcode to install.
 microcode_detector
 
+rm -rf /mnt/boot/efi/EFI/refind
+rm -f /mnt/boot/amd-ucode.img
+
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
 pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs mesa rsync efibootmgr snapper refind reflector snap-pac zram-generator sudo
