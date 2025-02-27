@@ -210,8 +210,9 @@ hostname_selector () {
 
 # User chooses the locale (function).
 locale_selector () {
-    input_print "Please insert the locale you use (format: xx_XX. Enter empty to use en_US, or \"/\" to search locales): " locale
-    read -r locale
+    #input_print "Please insert the locale you use (format: xx_XX. Enter empty to use en_US, or \"/\" to search locales): " locale
+    #read -r locale
+    locale=''
     case "$locale" in
         '') locale="en_US.UTF-8"
             info_print "$locale will be the default locale."
@@ -328,8 +329,8 @@ partprobe "$DISK"
 
 # Creating a LUKS Container for the root partition.
 info_print "Creating LUKS Container for the root partition."
-echo -n "$password" | cryptsetup luksFormat "$CRYPTROOT" -d - &>/dev/null
-echo -n "$password" | cryptsetup open "$CRYPTROOT" cryptroot -d -
+echo -n "$password" | cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 2000 --pbkdf argon2id --hash sha3-512 "$CRYPTROOT" -d - &>/dev/null
+echo -n "$password" | cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open "$CRYPTROOT" cryptroot -d -
 BTRFS="/dev/mapper/cryptroot"
 
 # Formatting the LUKS Container as BTRFS.
@@ -339,24 +340,37 @@ mount "$BTRFS" /mnt
 
 # Creating BTRFS subvolumes.
 info_print "Creating BTRFS subvolumes."
-subvols=(snapshots var_pkgs var_log home root srv)
+btrfs sub create /mnt/@
+subvols=(snapshots pkg home tmp srv swap btrfs)
 for subvol in '' "${subvols[@]}"; do
     btrfs su cr /mnt/@"$subvol" &>/dev/null
 done
 
+
 # Mounting the newly created subvolumes.
 umount /mnt
+
+
 info_print "Mounting the newly created subvolumes."
-mountopts="ssd,noatime,compress-force=zstd:3,discard=async"
-mount -o "$mountopts",subvol=@ "$BTRFS" /mnt
-mkdir -p /mnt/{home,root,srv,.snapshots,var/{log,cache/pacman/pkg},boot}
-for subvol in "${subvols[@]:2}"; do
-    mount -o "$mountopts",subvol=@"$subvol" "$BTRFS" /mnt/"${subvol//_//}"
-done
-chmod 750 /mnt/root
-mount -o "$mountopts",subvol=@snapshots "$BTRFS" /mnt/.snapshots
-mount -o "$mountopts",subvol=@var_pkgs "$BTRFS" /mnt/var/cache/pacman/pkg
-chattr +C /mnt/var/log
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/cryptroot /mnt
+mkdir -p /mnt/{boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/cryptroot /mnt/var/tmp
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/cryptroot /mnt/srv
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
+mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/crypt /mnt/.swapvol
+mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,space_cache,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/crypt /mnt/btrfs
+
+# Create Swapfile
+truncate -s 0 /mnt/.swapvol/swapfile
+chattr +C /mnt/.swapvol/swapfile
+btrfs property set /mnt/.swapvol/swapfile compression none
+fallocate -l 16G /mnt/.swapvol/swapfile
+chmod 600 /mnt/.swapvol/swapfile
+mkswap /mnt/.swapvol/swapfile
+swapon /mnt/.swapvol/swapfile
+
 mount "${ESP}" /mnt/boot/
 
 # Checking the microcode to install.
@@ -398,10 +412,11 @@ network_installer
 
 # Configuring /etc/mkinitcpio.conf.
 info_print "Configuring /etc/mkinitcpio.conf."
+sed -i 's/BINARIES=()/BINARIES=("\/usr\/bin\/btrfs")/' /mnt/etc/mkinitcpio.conf
 sed -i 's/MODULES=()/MODULES=(amdgpu)/' /mnt/etc/mkinitcpio.conf
-cat > /mnt/etc/mkinitcpio.conf <<EOF
-HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)
-EOF
+sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' /mnt/etc/mkinitcpio.conf
+sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' /mnt/etc/mkinitcpio.conf
+sed -i 's/^HOOKS/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' /mnt/etc/mkinitcpio.conf
 
 # Configuring the system.
 info_print "Configuring the system (timezone, system clock, initramfs, Snapper, refind)."
