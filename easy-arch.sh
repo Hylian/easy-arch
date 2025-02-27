@@ -365,12 +365,7 @@ mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,d
 chmod 750 /mnt/root
 
 # Create Swapfile
-truncate -s 0 /mnt/.swapvol/swapfile
-chattr +C /mnt/.swapvol/swapfile
-btrfs property set /mnt/.swapvol/swapfile compression none
-fallocate -l 68G /mnt/.swapvol/swapfile
-chmod 600 /mnt/.swapvol/swapfile
-mkswap /mnt/.swapvol/swapfile
+btrfs filesystem mkswapfile --size 68g --uuid clear /mnt/.swapvol/swapfile
 swapon /mnt/.swapvol/swapfile
 
 mount "${ESP}" /mnt/boot/
