@@ -367,7 +367,7 @@ rm -f /mnt/boot/amd-ucode.img
 
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
-pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs mesa rsync efibootmgr snapper refind reflector snap-pac zram-generator sudo
+pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs mesa rsync efibootmgr refind reflector snap-pac zram-generator sudo
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
@@ -423,6 +423,8 @@ locale-gen &>/dev/null
 
 # Generating a new initramfs.
 mkinitcpio -P &>/dev/null
+
+sudo pacman -S snapper
 
 # Snapper configuration.
 umount /.snapshots
