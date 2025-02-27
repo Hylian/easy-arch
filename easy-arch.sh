@@ -423,20 +423,25 @@ echo 'PRUNENAMES = ".snapshots"' >> /mnt/etc/updatedb.conf
 # ============
 # BEGIN CHROOT
 # ============
+info_print "Entering chroot."
 arch-chroot /mnt
 
 # Setting up timezone.
+info_print "Setting timezone"
 ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime &>/dev/null
 
 # Setting up clock.
 hwclock --systohc
 
+info_print "Generating locales"
 # Generating locales.
 locale-gen &>/dev/null
 
 # Generating a new initramfs.
-mkinitcpio -P &>/dev/null
+info_print "mkinitcpio"
+mkinitcpio -P
 
+info_print "Snapper"
 sudo pacman -S snapper
 
 # Snapper configuration.
@@ -448,17 +453,21 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
+info_print "Paru"
 cd /tmp
 git clone https://aur.archlinux.org/paru.git
 cd paru
 makepkg -si
 cd .. && sudo rm -dR paru
+
+info_print "Shim"
 paru -S shim-signed
 
 refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
 sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
 
 exit
+info_print "Exiting chroot."
 # ==========
 # END CHROOT
 # ==========
