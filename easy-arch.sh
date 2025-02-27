@@ -390,9 +390,10 @@ cat > /mnt/etc/hosts <<EOF
 EOF
 
 # Virtualization check.
-virt_check
+#virt_check
 
 # Setting up the network.
+info_print "Setting up network."
 network_installer
 
 # Configuring /etc/mkinitcpio.conf.
