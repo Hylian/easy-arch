@@ -424,7 +424,7 @@ echo 'PRUNENAMES = ".snapshots"' >> /mnt/etc/updatedb.conf
 # BEGIN CHROOT
 # ============
 info_print "Entering chroot."
-arch-chroot /mnt
+arch-chroot /mnt /bin/bash -e <<EOF
 
 # Setting up timezone.
 info_print "Setting timezone"
@@ -466,7 +466,7 @@ paru -S shim-signed
 refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
 sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
 
-exit
+EOF
 info_print "Exiting chroot."
 # ==========
 # END CHROOT
