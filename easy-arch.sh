@@ -360,7 +360,7 @@ mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,d
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/cryptroot /mnt/var/tmp
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/cryptroot /mnt/srv
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/cryptroot /mnt/.snapshots
-mount -o compress=no,ssd,discard=async,subvol=@swap /dev/mapper/cryptroot /mnt/.swapvol
+mount -o ssd,discard=async,subvol=@swap /dev/mapper/cryptroot /mnt/.swapvol
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/cryptroot /mnt/btrfs
 chmod 750 /mnt/root
 
