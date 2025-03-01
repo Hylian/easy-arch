@@ -65,7 +65,7 @@ network_selector () {
     info_print "5) I will do this on my own (only advanced users)"
     input_print "Please select the number of the corresponding networking utility (e.g. 1): "
     read -r network_choice
-    if ! ((1 <= network_choice <= 5)); then
+    if ! [[ "$network_choice" =~ ^[1-5]$ ]]; then
         info_print "Defaulting to NetworkManager (with iwd backend)"
         network_choice=2
         return 0
@@ -269,7 +269,7 @@ until hostname_selector; do : ; done
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
 
-echo -e "$(parted '$DISK' unit MB print free)"
+echo -e "$(parted $DISK unit MB print free)"
 input_print "Installing to largest free space. Is this correct [Y/n]?: "
 read -r free_space_response
 if [[ "${free_space_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
@@ -281,7 +281,7 @@ info_print "OK! Creating CRYPTROOT partition on $DISK."
 sgdisk -n 0:0:0 -c 0:"CRYPTROOT" "$DISK"
 CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
 
-echo -e "$(parted '$DISK' unit MB print free)"
+echo -e "$(parted $DISK unit MB print free)"
 input_print "Partition created. Look good [Y/n]?: "
 read -r post_partition_response
 if [[ "${post_partition_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
