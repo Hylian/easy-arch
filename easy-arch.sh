@@ -3,6 +3,8 @@
 # Fixing annoying issue that breaks GitHub Actions
 # shellcheck disable=SC2001
 
+echo 1 > /sys/class/graphics/fbcon/rotate_all
+
 # Cleaning the TTY.
 clear
 
@@ -27,32 +29,6 @@ input_print () {
 # Alert user of bad input (function).
 error_print () {
     echo -e "${BOLD}${BRED}[ ${BBLUE}•${BRED} ] $1${RESET}"
-}
-
-# Virtualization check (function).
-virt_check () {
-    hypervisor=$(systemd-detect-virt)
-    case $hypervisor in
-        kvm )   info_print "KVM has been detected, setting up guest tools."
-                pacstrap /mnt qemu-guest-agent &>/dev/null
-                systemctl enable qemu-guest-agent --root=/mnt &>/dev/null
-                ;;
-        vmware  )   info_print "VMWare Workstation/ESXi has been detected, setting up guest tools."
-                    pacstrap /mnt open-vm-tools >/dev/null
-                    systemctl enable vmtoolsd --root=/mnt &>/dev/null
-                    systemctl enable vmware-vmblock-fuse --root=/mnt &>/dev/null
-                    ;;
-        oracle )    info_print "VirtualBox has been detected, setting up guest tools."
-                    pacstrap /mnt virtualbox-guest-utils &>/dev/null
-                    systemctl enable vboxservice --root=/mnt &>/dev/null
-                    ;;
-        microsoft ) info_print "Hyper-V has been detected, setting up guest tools."
-                    pacstrap /mnt hyperv &>/dev/null
-                    systemctl enable hv_fcopy_daemon --root=/mnt &>/dev/null
-                    systemctl enable hv_kvp_daemon --root=/mnt &>/dev/null
-                    systemctl enable hv_vss_daemon --root=/mnt &>/dev/null
-                    ;;
-    esac
 }
 
 # Selecting a kernel to install (function).
@@ -89,8 +65,9 @@ network_selector () {
     input_print "Please select the number of the corresponding networking utility (e.g. 1): "
     read -r network_choice
     if ! ((1 <= network_choice <= 5)); then
-        error_print "You did not enter a valid selection, please try again."
-        return 1
+        info_print "Defaulting to NetworkManager (with iwd backend)"
+        network_choice=2
+        return 0
     fi
     return 0
 }
@@ -427,18 +404,21 @@ info_print "Entering chroot."
 arch-chroot /mnt /bin/bash -e <<EOF
 
 # Setting up timezone.
+echo "Setting timezone to New_York."
 ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime &>/dev/null
 
 # Setting up clock.
 hwclock --systohc
 
-info_print "Generating locales"
 # Generating locales.
+echo "Generating locales."
 locale-gen &>/dev/null
 
 # Generating a new initramfs.
+echo "Generating initramfs."
 mkinitcpio -P
 
+echo "Installing and configuring snapper."
 sudo pacman -S snapper
 
 # Snapper configuration.
@@ -450,17 +430,21 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
+echo "Installing paru."
 cd /tmp
 git clone https://aur.archlinux.org/paru.git
 cd paru
 makepkg -si
 cd .. && sudo rm -dR paru
 
+echo "Installing shim."
 paru -S --noconfirm shim-signed
 
+echo "Installing refind."
 refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
 sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
 
+echo "Installing user applications."
 paru -S --noconfirm 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base fonts-meta-extended-lt fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayfx-git swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wdisplays wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions
 EOF
 info_print "Exiting chroot."
@@ -470,6 +454,7 @@ info_print "Exiting chroot."
 
 mkdir /mnt/etc/pacman.d/hooks
 
+info_print "Creating /etc/pacman.d/hooks/999-sign_kernel_for_secureboot.hook"
 cat << EOF > /mnt/etc/pacman.d/hooks/999-sign_kernel_for_secureboot.hook
 """
 [Trigger]
@@ -489,6 +474,7 @@ Depends = findutils
 Depends = grep
 EOF
 
+info_print "Creating /etc/pacman.d/hooks/refind.hook to auto-sign for secure boot"
 cat << EOF > /mnt/etc/pacman.d/hooks/refind.hook
 [Trigger]
 Operation=Upgrade
@@ -500,34 +486,7 @@ When=PostTransaction
 Exec=/usr/bin/refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
 EOF
 
-UUID=$(blkid -s UUID -o value $CRYPTROOT)
-cat << EOF >> /boot/EFI/refind/refind.conf
-    menuentry "Arch Linux" {
-        volume   "Arch Linux"
-        loader   /vmlinuz-linux
-        initrd   /initramfs-linux.img
-        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
-        submenuentry "Boot using fallback initramfs" {
-            initrd /boot/initramfs-linux-fallback.img
-        }
-    }
-EOF
-
-# Setting root password.
-info_print "Setting root password."
-echo "root:$rootpass" | arch-chroot /mnt chpasswd
-
-# Setting user password.
-if [[ -n "$username" ]]; then
-    echo "%wheel ALL=(ALL:ALL) ALL" > /mnt/etc/sudoers.d/wheel
-    info_print "Adding the user $username to the system with root privilege."
-    arch-chroot /mnt useradd -m -G wheel -s /bin/bash "$username"
-    info_print "Setting user password for $username."
-    echo "$username:$userpass" | arch-chroot /mnt chpasswd
-fi
-
-# Boot backup hook.
-info_print "Configuring /boot backup when pacman transactions are made."
+info_print "Creating /etc/pacman.d/hooks/50-bootbackup.hook to backup /boot when pacman transactions are made."
 mkdir /mnt/etc/pacman.d/hooks
 cat > /mnt/etc/pacman.d/hooks/50-bootbackup.hook <<EOF
 [Trigger]
@@ -543,6 +502,35 @@ Description = Backing up /boot...
 When = PostTransaction
 Exec = /usr/bin/rsync -a --delete /boot /.bootbackup
 EOF
+
+info_print "Configuring refind.conf"
+UUID=$(blkid -s UUID -o value $CRYPTROOT)
+cat << EOF >> /boot/EFI/refind/refind.conf
+    menuentry "Arch Linux" {
+        volume   "Arch Linux"
+        loader   /vmlinuz-linux
+        initrd   /initramfs-linux.img
+        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
+        submenuentry "Boot using fallback initramfs" {
+            initrd /boot/initramfs-linux-fallback.img
+        }
+    }
+EOF
+
+
+# Setting root password.
+info_print "Setting root password."
+echo "root:$rootpass" | arch-chroot /mnt chpasswd
+
+# Setting user password.
+if [[ -n "$username" ]]; then
+    echo "%wheel ALL=(ALL:ALL) ALL" > /mnt/etc/sudoers.d/wheel
+    info_print "Adding the user $username to the system with root privilege."
+    arch-chroot /mnt useradd -m -G wheel -s /bin/bash "$username"
+    info_print "Setting user password for $username."
+    echo "$username:$userpass" | arch-chroot /mnt chpasswd
+fi
+
 
 # Laptop Battery Life Improvements
 echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf
