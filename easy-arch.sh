@@ -1,7 +1,14 @@
 #!/usr/bin/env -S bash -e
 
-# Fixing annoying issue that breaks GitHub Actions
-# shellcheck disable=SC2001
+"""
+iwctl
+[iwd]# device list
+[iwd]# station device scan
+[iwd]# station device get-networks
+[iwd]# station device connect SSID
+
+passwd for ssh
+"""
 
 echo 1 > /sys/class/graphics/fbcon/rotate_all
 
@@ -29,6 +36,19 @@ input_print () {
 # Alert user of bad input (function).
 error_print () {
     echo -e "${BOLD}${BRED}[ ${BBLUE}•${BRED} ] $1${RESET}"
+}
+
+rotation_selector () {
+    info_print "Rotate the display?"
+    info_print "0) No (default)"
+    info_print "1) 90 clockwise"
+    info_print "2) 180"
+    info_print "3) 90 counter-clockwise"
+    read -r rotation_choice
+    if ! [[ "$rotation_choice" =~ ^[0-3]$ ]]; then
+        rotation_choice=0
+    fi
+    echo "$rotation_choice" > /sys/class/graphics/fbcon/rotate_all
 }
 
 # Selecting a kernel to install (function).
@@ -226,6 +246,8 @@ keyboard_selector () {
         return 0
     esac
 }
+
+rotation_selector
 
 # Setting up keyboard layout.
 info_print "Setting console layout to 'us'"
@@ -473,7 +495,6 @@ Exec=/usr/bin/refind-install --shim /usr/share/shim-signed/shimx64.efi --localke
 EOF
 
 info_print "Creating /etc/pacman.d/hooks/50-bootbackup.hook to backup /boot when pacman transactions are made."
-mkdir /mnt/etc/pacman.d/hooks
 cat > /mnt/etc/pacman.d/hooks/50-bootbackup.hook <<EOF
 [Trigger]
 Operation = Upgrade
