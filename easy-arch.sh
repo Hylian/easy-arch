@@ -456,10 +456,12 @@ cd paru
 makepkg -si
 cd .. && sudo rm -dR paru
 
-paru -S shim-signed
+paru -S --noconfirm shim-signed
 
 refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
 sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
+
+paru -S --noconfirm 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base fonts-meta-extended-lt fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayfx-git swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wdisplays wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions
 EOF
 info_print "Exiting chroot."
 # ==========
@@ -567,4 +569,3 @@ done
 
 # Finishing up.
 info_print "Done, you may now wish to reboot (further changes can be done by chrooting into /mnt)."
-exit
