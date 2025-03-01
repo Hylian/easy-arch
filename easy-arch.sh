@@ -1,16 +1,14 @@
 #!/usr/bin/env -S bash -e
 
-"""
-iwctl
-[iwd]# device list
-[iwd]# station device scan
-[iwd]# station device get-networks
-[iwd]# station device connect SSID
-
-passwd for ssh
-"""
-
-echo 1 > /sys/class/graphics/fbcon/rotate_all
+# iwctl
+# [iwd]# device list
+# [iwd]# station device scan
+# [iwd]# station device get-networks
+# [iwd]# station device connect SSID
+#
+# curl --output easyarch.sh -L https://easyarch.tokilabs.co
+# chmod +x easyarch.sh
+# ./easyarch.sh
 
 # Cleaning the TTY.
 clear
@@ -512,7 +510,7 @@ EOF
 
 info_print "Configuring refind.conf"
 UUID=$(blkid -s UUID -o value $CRYPTROOT)
-cat << EOF >> /boot/EFI/refind/refind.conf
+cat << EOF >> /mnt/boot/EFI/refind/refind.conf
     menuentry "Arch Linux" {
         volume   "Arch Linux"
         loader   /vmlinuz-linux
