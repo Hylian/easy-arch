@@ -49,8 +49,9 @@ kernel_selector () {
             return 0;;
         4 ) kernel="linux-zen"
             return 0;;
-        * ) error_print "You did not enter a valid selection, please try again."
-            return 1
+        * ) kernel="linux"
+            info_print "Defaulting to 'linux'"
+            return 0;;
     esac
 }
 
@@ -226,21 +227,9 @@ keyboard_selector () {
     esac
 }
 
-# Welcome screen.
-echo -ne "${BOLD}${BYELLOW}
-======================================================================
-███████╗ █████╗ ███████╗██╗   ██╗      █████╗ ██████╗  ██████╗██╗  ██╗
-██╔════╝██╔══██╗██╔════╝╚██╗ ██╔╝     ██╔══██╗██╔══██╗██╔════╝██║  ██║
-█████╗  ███████║███████╗ ╚████╔╝█████╗███████║██████╔╝██║     ███████║
-██╔══╝  ██╔══██║╚════██║  ╚██╔╝ ╚════╝██╔══██║██╔══██╗██║     ██╔══██║
-███████╗██║  ██║███████║   ██║        ██║  ██║██║  ██║╚██████╗██║  ██║
-╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝        ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
-======================================================================
-${RESET}"
-info_print "Welcome to easy-arch, a script made in order to simplify the process of installing Arch Linux."
-
 # Setting up keyboard layout.
-until keyboard_selector; do : ; done
+info_print "Setting console layout to 'us'"
+loadkeys "us"
 
 # Choosing the target for the installation.
 info_print "Available disks for the installation:"
@@ -254,9 +243,9 @@ done
 
 ESP="${DISK}p1"
 info_print "DISK=${DISK} ESP=${ESP}"
-input_print "Using ${ESP} as the EFI boot partition. Is this correct [y/N]?: "
+input_print "Using ${ESP} as the EFI boot partition. Is this correct [Y/n]?: "
 read -r boot_response
-if ! [[ "${boot_response,,}" =~ ^(yes|y)$ ]]; then
+if [[ "${boot_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
     error_print "Quitting."
     exit
 fi
@@ -280,10 +269,10 @@ until hostname_selector; do : ; done
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
 
-echo $(parted "$DISK" unit MB print free)
-input_print "Installing to largest free space. Is this correct [y/N]?: "
+echo -e "$(parted '$DISK' unit MB print free)"
+input_print "Installing to largest free space. Is this correct [Y/n]?: "
 read -r free_space_response
-if ! [[ "${free_space_response,,}" =~ ^(yes|y)$ ]]; then
+if [[ "${free_space_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
     error_print "Quitting."
     exit
 fi
@@ -292,10 +281,10 @@ info_print "OK! Creating CRYPTROOT partition on $DISK."
 sgdisk -n 0:0:0 -c 0:"CRYPTROOT" "$DISK"
 CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
 
-blkid
-input_print "Partition created. Look good [y/N]?: "
+echo -e "$(parted '$DISK' unit MB print free)"
+input_print "Partition created. Look good [Y/n]?: "
 read -r post_partition_response
-if ! [[ "${post_partition_response,,}" =~ ^(yes|y)$ ]]; then
+if [[ "${post_partition_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
     error_print "Quitting."
     exit
 fi
@@ -377,9 +366,6 @@ cat > /mnt/etc/hosts <<EOF
 127.0.1.1   $hostname.localdomain   $hostname
 EOF
 
-# Virtualization check.
-#virt_check
-
 # Setting up the network.
 info_print "Setting up network."
 network_installer
@@ -390,7 +376,7 @@ sed -i 's/BINARIES=()/BINARIES=("\/usr\/bin\/btrfs")/' /mnt/etc/mkinitcpio.conf
 sed -i 's/MODULES=()/MODULES=(amdgpu)/' /mnt/etc/mkinitcpio.conf
 sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' /mnt/etc/mkinitcpio.conf
 sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' /mnt/etc/mkinitcpio.conf
-sed -i 's/^HOOKS/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' /mnt/etc/mkinitcpio.conf
+sed -i 's/^HOOKS=.*$/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' /mnt/etc/mkinitcpio.conf
 
 # Configuring the system.
 info_print "Configuring the system (timezone, system clock, initramfs, Snapper, refind)."
