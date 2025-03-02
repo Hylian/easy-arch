@@ -546,6 +546,8 @@ menuentry "Arch Linux" {
 include themes/refind-dreary/theme.conf
 EOF
 
+arch-chroot /mnt refind-install
+
 # Setting root password.
 info_print "Setting root password."
 echo "root:$rootpass" | arch-chroot /mnt chpasswd
