@@ -538,6 +538,27 @@ Type=simple
 Environment=XDG_SESSION_TYPE=wayland
 EOF
 
+info_print "Entering chroot."
+arch-chroot /mnt /bin/bash -e <<EOF
+
+cd /tmp
+curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts/btrfs_map_physical.c
+gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
+rm btrfs_map_physical.c
+mv btrfs_map_physical /usr/local/bin
+
+mkdir /boot/EFI/refind/themes
+git clone https://github.com/dheishman/refind-dreary.git /boot/EFI/refind/themes/refind-dreary
+mv /boot/EFI/refind/themes/refind-dreary/highres /boot/EFI/refind/themes/refind-dreary-tmp
+rm -dR /boot/EFI/refind/themes/refind-dreary
+mv /boot/EFI/refind/themes/refind-dreary-tmp /boot/EFI/refind/themes/refind-dreary
+
+# Replace 1920 1080 with your monitors resolution
+sed -i 's/#resolution 3/resolution 2560 1600/' /boot/EFI/refind/refind.conf
+sed -i 's/#use_graphics_for osx,linux/use_graphics_for linux/' /boot/EFI/refind/refind.conf
+sed -i 's/#scanfor internal,external,optical,manual/scanfor manual,external/' /boot/EFI/refind/refind.conf
+EOF
+
 info_print "Configuring refind.conf"
 UUID=$(blkid -s UUID -o value $CRYPTROOT)
 $rotation_kernel_option = ''
@@ -545,15 +566,18 @@ if [[ $rotation_choice != 0 ]]; then
     rotation_kernel_option="fbcon=rotate:$rotation_choice"
 fi
 cat << EOF >> /mnt/boot/EFI/refind/refind.conf
-    menuentry "Arch Linux" {
-        volume   "Arch Linux"
-        loader   /vmlinuz-linux
-        initrd   /initramfs-linux.img
-        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs resume_offset=$( echo "$(btrfs_map_physical /.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option"
-        submenuentry "Boot using fallback initramfs" {
-            initrd /boot/initramfs-linux-fallback.img
-        }
+menuentry "Arch Linux" {
+    icon     icon /EFI/refind/themes/refind-dreary/icons/os_arch.png
+    volume   "Arch Linux"
+    loader   /vmlinuz-linux
+    initrd   /initramfs-linux.img
+    options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs resume_offset=$( echo "$(/mnt/usr/local/bin/btrfs_map_physical /.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option"
+    submenuentry "Boot using fallback initramfs" {
+        initrd /boot/initramfs-linux-fallback.img
     }
+}
+
+include themes/refind-dreary/theme.conf
 EOF
 
 # Setting root password.
@@ -584,12 +608,6 @@ EOF
 # Pacman eye-candy features.
 info_print "Enabling colours, animations, and parallel downloads for pacman."
 sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /mnt/etc/pacman.conf
-
-cd /tmp
-curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts/btrfs_map_physical.c
-gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
-rm btrfs_map_physical.c
-mv btrfs_map_physical /mnt/usr/local/bin
 
 # Enabling various services.
 info_print "Enabling Reflector, automatic snapshots, BTRFS scrubbing and systemd-oomd."
