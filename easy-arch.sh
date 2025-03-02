@@ -360,6 +360,7 @@ mount "${ESP}" /mnt/boot/
 microcode_detector
 
 rm -rf /mnt/boot/efi/EFI/refind
+rm -rf /mnt/boot/EFI/refind
 rm -f /mnt/boot/amd-ucode.img
 
 # Pacstrap (setting up a base sytem onto the new root).
