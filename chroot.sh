@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -e
+#!/usr/bin/env -S bash
 
 echo 1 > /sys/class/graphics/fbcon/rotate_all
 
@@ -7,6 +7,7 @@ ESP="/dev/disk/by-partlabel/EFI\\x20system\\x20partition"
 cryptsetup open "$CRYPTROOT" cryptroot
 BTRFS="/dev/mapper/cryptroot"
 
+mkdir /mnt
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/cryptroot /mnt
 mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,var/tmp,.snapshots,.swapvol,btrfs,srv}
 
@@ -19,9 +20,6 @@ mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,d
 mount -o ssd,discard=async,subvol=@swap /dev/mapper/cryptroot /mnt/.swapvol
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/cryptroot /mnt/btrfs
 chmod 750 /mnt/root
-
-# Create Swapfile
-swapon /mnt/.swapvol/swapfile
 
 mount "${ESP}" /mnt/boot/
 
