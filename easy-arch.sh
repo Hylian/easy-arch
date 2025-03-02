@@ -550,15 +550,11 @@ rm btrfs_map_physical.c
 mv btrfs_map_physical /usr/local/bin
 
 mkdir -p /boot/EFI/refind/themes
+
 git clone https://github.com/dheishman/refind-dreary.git /boot/EFI/refind/themes/refind-dreary
 mv /boot/EFI/refind/themes/refind-dreary/highres /boot/EFI/refind/themes/refind-dreary-tmp
 rm -dR /boot/EFI/refind/themes/refind-dreary
 mv /boot/EFI/refind/themes/refind-dreary-tmp /boot/EFI/refind/themes/refind-dreary
-
-# Replace 1920 1080 with your monitors resolution
-sed -i 's/#resolution 3/resolution 2560 1600/' /boot/EFI/refind/refind.conf
-sed -i 's/#use_graphics_for osx,linux/use_graphics_for linux/' /boot/EFI/refind/refind.conf
-sed -i 's/#scanfor internal,external,optical,manual/scanfor manual,external/' /boot/EFI/refind/refind.conf
 EOF
 
 info_print "Configuring refind.conf"
@@ -567,7 +563,12 @@ $rotation_kernel_option=''
 if [[ $rotation_choice != 0 ]]; then
     rotation_kernel_option="fbcon=rotate:$rotation_choice"
 fi
-cat << EOF >> /mnt/boot/EFI/refind/refind.conf
+cat << EOF > /mnt/boot/EFI/refind/refind.conf
+resolution 2560 1600
+enable_mouse
+use_graphics_for linux
+scanfor internal,manual,external
+
 menuentry "Arch Linux" {
     icon     icon /EFI/refind/themes/refind-dreary/icons/os_arch.png
     volume   "Arch Linux"
