@@ -364,6 +364,7 @@ rm -f /mnt/boot/amd-ucode.img
 
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
+sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /etc/pacman.conf
 pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs mesa rsync efibootmgr refind reflector snap-pac zram-generator sudo
 
 # Setting up the hostname.
@@ -436,6 +437,22 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
+# Optimize Makepkg
+sed -i 's/^CFLAGS.*$/CFLAGS="-march=native -mtune=native -O2 -pipe -fstack-protector-strong --param=ssp-buffer-size=4 -fno-plt"/' /etc/makepkg.conf
+sed -i 's/^CXXFLAGS.*$/CXXFLAGS="${CFLAGS}"/' /etc/makepkg.conf
+sed -i 's/^#RUSTFLAGS.*$/RUSTFLAGS="-C opt-level=2 -C target-cpu=native"/' /etc/makepkg.conf
+sed -i 's/^#BUILDDIR.*$/BUILDDIR=\/tmp\/makepkg makepkg/' etc/makepkg.conf
+sed -i 's/^#MAKEFLAGS.*$/MAKEFLAGS="-j$(getconf _NPROCESSORS_ONLN) --quiet"/' /etc/makepkg.conf
+sed -i 's/^COMPRESSGZ.*$/COMPRESSGZ=(pigz -c -f -n)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSBZ2.*$/COMPRESSBZ2=(pbzip2 -c -f)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSXZ.*$/COMPRESSXZ=(xz -T "$(getconf _NPROCESSORS_ONLN)" -c -z --best -)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSZST.*$/COMPRESSZST=(zstd -c -z -q --ultra -T0 -22 -)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSLZ.*$/COMPRESSLZ=(lzip -c -f)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSLRZ.*$/COMPRESSLRZ=(lrzip -9 -q)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSLZO.*$/COMPRESSLZO=(lzop -q --best)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSZ.*$/COMPRESSZ=(compress -c -f)/' /etc/makepkg.conf
+sed -i 's/^COMPRESSLZ4.*$/COMPRESSLZ4=(lz4 -q --best)/' /etc/makepkg.conf
+
 echo "Installing paru."
 cd /tmp
 git clone https://aur.archlinux.org/paru.git
@@ -451,7 +468,11 @@ refind-install --shim /usr/share/shim-signed/shimx64.efi --localkeys
 sbsign --key /etc/refind.d/keys/refind_local.key --cert /etc/refind.d/keys/refind_local.crt --output /boot/vmlinuz-linux /boot/vmlinuz-linux
 
 echo "Installing user applications."
-paru -S --noconfirm 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base fonts-meta-extended-lt fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayfx-git swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wdisplays wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions
+paru -S --noconfirm 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache chezmoi cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base fonts-meta-extended-lt fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayfx-git swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wdisplays wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions
+
+echo "Dotfile setup..."
+cd ~
+chezmoi init --apply Hylian
 EOF
 info_print "Exiting chroot."
 # ==========
@@ -508,20 +529,32 @@ When = PostTransaction
 Exec = /usr/bin/rsync -a --delete /boot /.bootbackup
 EOF
 
+info_print "Enabling autologin."
+cat > /mnt/etc/systemd/system/getty@tty.service.d/autologin.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin $username - $TERM
+Type=simple
+Environment=XDG_SESSION_TYPE=wayland
+EOF
+
 info_print "Configuring refind.conf"
 UUID=$(blkid -s UUID -o value $CRYPTROOT)
+$rotation_kernel_option = ''
+if [[ $rotation_choice != 0 ]]; then
+    rotation_kernel_option="fbcon=rotate:$rotation_choice"
+fi
 cat << EOF >> /mnt/boot/EFI/refind/refind.conf
     menuentry "Arch Linux" {
         volume   "Arch Linux"
         loader   /vmlinuz-linux
         initrd   /initramfs-linux.img
-        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img"
+        options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option"
         submenuentry "Boot using fallback initramfs" {
             initrd /boot/initramfs-linux-fallback.img
         }
     }
 EOF
-
 
 # Setting root password.
 info_print "Setting root password."
@@ -535,7 +568,6 @@ if [[ -n "$username" ]]; then
     info_print "Setting user password for $username."
     echo "$username:$userpass" | arch-chroot /mnt chpasswd
 fi
-
 
 # Laptop Battery Life Improvements
 echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf
@@ -561,4 +593,4 @@ for service in "${services[@]}"; do
 done
 
 # Finishing up.
-info_print "Done, you may now wish to reboot (further changes can be done by chrooting into /mnt)."
+info_print "Done!"
