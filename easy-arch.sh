@@ -564,7 +564,7 @@ if [[ $rotation_choice != 0 ]]; then
     rotation_kernel_option="fbcon=rotate:$rotation_choice"
 fi
 cat << EOF > /mnt/boot/EFI/refind/refind.conf
-resolution 2560 1600
+resolution 3
 enable_mouse
 use_graphics_for linux
 scanfor internal,manual,external
