@@ -530,6 +530,7 @@ Exec = /usr/bin/rsync -a --delete /boot /.bootbackup
 EOF
 
 info_print "Enabling autologin."
+mkdir -p /mnt/etc/systemd/system/getty@tty.service.d/
 cat > /mnt/etc/systemd/system/getty@tty.service.d/autologin.conf <<EOF
 [Service]
 ExecStart=
