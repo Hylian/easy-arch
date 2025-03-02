@@ -574,7 +574,7 @@ menuentry "Arch Linux" {
     volume   "Arch Linux"
     loader   /vmlinuz-linux
     initrd   /initramfs-linux.img
-    options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs resume_offset=$( echo "$(/mnt/usr/local/bin/btrfs_map_physical /.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option"
+    options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs resume_offset=$( echo "$(/mnt/usr/local/bin/btrfs_map_physical /mnt/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option"
     submenuentry "Boot using fallback initramfs" {
         initrd /boot/initramfs-linux-fallback.img
     }
