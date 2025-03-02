@@ -548,7 +548,7 @@ gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
 rm btrfs_map_physical.c
 mv btrfs_map_physical /usr/local/bin
 
-mkdir /boot/EFI/refind/themes
+mkdir -p /boot/EFI/refind/themes
 git clone https://github.com/dheishman/refind-dreary.git /boot/EFI/refind/themes/refind-dreary
 mv /boot/EFI/refind/themes/refind-dreary/highres /boot/EFI/refind/themes/refind-dreary-tmp
 rm -dR /boot/EFI/refind/themes/refind-dreary
