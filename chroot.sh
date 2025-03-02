@@ -1,14 +1,15 @@
 #!/usr/bin/env -S bash -e
 
+echo 1 > /sys/class/graphics/fbcon/rotate_all
+
 CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
 ESP="/dev/disk/by-partlabel/EFI\\x20system\\x20partition"
 cryptsetup open "$CRYPTROOT" cryptroot
 BTRFS="/dev/mapper/cryptroot"
 
-mount "$ESP" /mnt/boot/
-
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/cryptroot /mnt
 mkdir -p /mnt/{root,boot,home,var/cache/pacman/pkg,var/tmp,.snapshots,.swapvol,btrfs,srv}
+
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@root /dev/mapper/cryptroot /mnt/root
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/cryptroot /mnt/home
 mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/cryptroot /mnt/var/cache/pacman/pkg
