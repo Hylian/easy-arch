@@ -10,7 +10,6 @@
 # chmod +x easyarch.sh
 # ./easyarch.sh
 
-# Cleaning the TTY.
 clear
 
 # Cosmetics (colours for text).
@@ -47,72 +46,6 @@ rotation_selector () {
         rotation_choice=0
     fi
     echo "$rotation_choice" > /sys/class/graphics/fbcon/rotate_all
-}
-
-# Selecting a kernel to install (function).
-kernel_selector () {
-    info_print "List of kernels:"
-    info_print "1) Stable: Vanilla Linux kernel with a few specific Arch Linux patches applied"
-    info_print "2) Hardened: A security-focused Linux kernel"
-    info_print "3) Longterm: Long-term support (LTS) Linux kernel"
-    info_print "4) Zen Kernel: A Linux kernel optimized for desktop usage"
-    input_print "Please select the number of the corresponding kernel (e.g. 1): "
-    read -r kernel_choice
-    case $kernel_choice in
-        1 ) kernel="linux"
-            return 0;;
-        2 ) kernel="linux-hardened"
-            return 0;;
-        3 ) kernel="linux-lts"
-            return 0;;
-        4 ) kernel="linux-zen"
-            return 0;;
-        * ) kernel="linux"
-            info_print "Defaulting to 'linux'"
-            return 0;;
-    esac
-}
-
-# Selecting a way to handle internet connection (function).
-network_selector () {
-    info_print "Network utilities:"
-    info_print "1) IWD: Utility to connect to networks written by Intel (WiFi-only, built-in DHCP client)"
-    info_print "2) NetworkManager: Universal network utility (both WiFi and Ethernet, highly recommended)"
-    info_print "3) wpa_supplicant: Utility with support for WEP and WPA/WPA2 (WiFi-only, DHCPCD will be automatically installed)"
-    info_print "4) dhcpcd: Basic DHCP client (Ethernet connections or VMs)"
-    info_print "5) I will do this on my own (only advanced users)"
-    input_print "Please select the number of the corresponding networking utility (e.g. 1): "
-    read -r network_choice
-    if ! [[ "$network_choice" =~ ^[1-5]$ ]]; then
-        info_print "Defaulting to NetworkManager (with iwd backend)"
-        network_choice=2
-        return 0
-    fi
-    return 0
-}
-
-# Installing the chosen networking method to the system (function).
-network_installer () {
-    case $network_choice in
-        1 ) info_print "Installing and enabling IWD."
-            pacstrap /mnt iwd >/dev/null
-            systemctl enable iwd --root=/mnt &>/dev/null
-            ;;
-        2 ) info_print "Installing and enabling NetworkManager."
-            pacstrap /mnt networkmanager iwd >/dev/null
-            systemctl enable NetworkManager --root=/mnt &>/dev/null
-            echo "[device]" > /mnt/etc/NetworkManager/conf.d/nm.conf
-            echo "wifi.backend=iwd" >> /mnt/etc/NetworkManager/conf.d/nm.conf
-            ;;
-        3 ) info_print "Installing and enabling wpa_supplicant and dhcpcd."
-            pacstrap /mnt wpa_supplicant dhcpcd >/dev/null
-            systemctl enable wpa_supplicant --root=/mnt &>/dev/null
-            systemctl enable dhcpcd --root=/mnt &>/dev/null
-            ;;
-        4 ) info_print "Installing dhcpcd."
-            pacstrap /mnt dhcpcd >/dev/null
-            systemctl enable dhcpcd --root=/mnt &>/dev/null
-    esac
 }
 
 # User enters a password for the LUKS Container (function).
@@ -204,47 +137,6 @@ hostname_selector () {
     return 0
 }
 
-# User chooses the locale (function).
-locale_selector () {
-    #input_print "Please insert the locale you use (format: xx_XX. Enter empty to use en_US, or \"/\" to search locales): " locale
-    #read -r locale
-    locale=''
-    case "$locale" in
-        '') locale="en_US.UTF-8"
-            info_print "$locale will be the default locale."
-            return 0;;
-        '/') sed -E '/^# +|^#$/d;s/^#| *$//g;s/ .*/ (Charset:&)/' /etc/locale.gen | less -M
-                clear
-                return 1;;
-        *)  if ! grep -q "^#\?$(sed 's/[].*[]/\\&/g' <<< "$locale") " /etc/locale.gen; then
-                error_print "The specified locale doesn't exist or isn't supported."
-                return 1
-            fi
-            return 0
-    esac
-}
-
-# User chooses the console keyboard layout (function).
-keyboard_selector () {
-    input_print "Please insert the keyboard layout to use in console (enter empty to use US, or \"/\" to look up for keyboard layouts): "
-    read -r kblayout
-    case "$kblayout" in
-        '') kblayout="us"
-            info_print "The standard US keyboard layout will be used."
-            return 0;;
-        '/') localectl list-keymaps
-             clear
-             return 1;;
-        *) if ! localectl list-keymaps | grep -Fxq "$kblayout"; then
-               error_print "The specified keymap doesn't exist."
-               return 1
-           fi
-        info_print "Changing console layout to $kblayout."
-        loadkeys "$kblayout"
-        return 0
-    esac
-}
-
 rotation_selector
 
 # Setting up keyboard layout.
@@ -261,26 +153,25 @@ do
     break
 done
 
-ESP="${DISK}p1"
-info_print "DISK=${DISK} ESP=${ESP}"
-input_print "Using ${ESP} as the EFI boot partition. Is this correct [Y/n]?: "
-read -r boot_response
-if [[ "${boot_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
-    error_print "Quitting."
-    exit
-fi
+# Clear the partition table
+echo "Clearing the partition table on $DISK..."
+sgdisk --zap-all "$DISK"
+
+# Create the EFI partition (1GB)
+echo "Creating 1GB EFI partition..."
+sgdisk --new=1:0:+1G --typecode=1:EF00 --change-name=1:"EFI System" "$DISK"
+
+# Create the CRYPTROOT partition with the rest of the disk
+echo "Creating CRYPTROOT partition with remaining space..."
+sgdisk --new=2:0:0 --typecode=2:8300 --change-name=2:"CRYPTROOT" "$DISK"
+
+# Print the new partition table
+echo "New partition table:"
+sgdisk --print "$DISK"
+
 
 # Setting up LUKS password.
 until lukspass_selector; do : ; done
-
-# Setting up the kernel.
-until kernel_selector; do : ; done
-
-# User choses the network.
-until network_selector; do : ; done
-
-# User choses the locale.
-until locale_selector; do : ; done
 
 # User choses the hostname.
 until hostname_selector; do : ; done
@@ -288,26 +179,6 @@ until hostname_selector; do : ; done
 # User sets up the user/root passwords.
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
-
-echo -e "$(parted $DISK unit MB print free)"
-input_print "Installing to largest free space. Is this correct [Y/n]?: "
-read -r free_space_response
-if [[ "${free_space_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
-    error_print "Quitting."
-    exit
-fi
-
-info_print "OK! Creating CRYPTROOT partition on $DISK."
-sgdisk -n 0:0:0 -c 0:"CRYPTROOT" "$DISK"
-CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
-
-echo -e "$(parted $DISK unit MB print free)"
-input_print "Partition created. Look good [Y/n]?: "
-read -r post_partition_response
-if [[ "${post_partition_response,,}" =~ ^(no|N|n|NO|no)$ ]]; then
-    error_print "Quitting."
-    exit
-fi
 
 # Informing the Kernel of the changes.
 info_print "Informing the Kernel about the disk changes."
@@ -366,7 +237,7 @@ rm -f /mnt/boot/amd-ucode.img
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
 sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /etc/pacman.conf
-pacstrap -K /mnt base "$kernel" "$microcode" linux-firmware "$kernel"-headers btrfs-progs mesa rsync efibootmgr refind reflector snap-pac zram-generator sudo base-devel gcc git
+pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr refind reflector snap-pac zram-generator sudo base-devel gcc git
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
@@ -376,8 +247,11 @@ info_print "Generating a new fstab."
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # Configure selected locale and console keymap
+locale="en_US.UTF-8"
 sed -i "/^#$locale/s/^#//" /mnt/etc/locale.gen
 echo "LANG=$locale" > /mnt/etc/locale.conf
+
+kblayout="us"
 echo "KEYMAP=$kblayout" > /mnt/etc/vconsole.conf
 
 # Setting hosts file.
@@ -390,7 +264,10 @@ EOF
 
 # Setting up the network.
 info_print "Setting up network."
-network_installer
+pacstrap /mnt networkmanager iwd >/dev/null
+systemctl enable NetworkManager --root=/mnt &>/dev/null
+echo "[device]" > /mnt/etc/NetworkManager/conf.d/nm.conf
+echo "wifi.backend=iwd" >> /mnt/etc/NetworkManager/conf.d/nm.conf
 
 # Configuring /etc/mkinitcpio.conf.
 info_print "Configuring /etc/mkinitcpio.conf."
