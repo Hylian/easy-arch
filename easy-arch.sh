@@ -153,22 +153,6 @@ do
     break
 done
 
-# Clear the partition table
-echo "Clearing the partition table on $DISK..."
-sgdisk --zap-all "$DISK"
-
-# Create the EFI partition (1GB)
-echo "Creating 1GB EFI partition..."
-sgdisk --new=1:0:+1G --typecode=1:EF00 --change-name=1:"EFI System" "$DISK"
-
-# Create the CRYPTROOT partition with the rest of the disk
-echo "Creating CRYPTROOT partition with remaining space..."
-sgdisk --new=2:0:0 --typecode=2:8300 --change-name=2:"CRYPTROOT" "$DISK"
-
-# Print the new partition table
-echo "New partition table:"
-sgdisk --print "$DISK"
-
 
 # Setting up LUKS password.
 until lukspass_selector; do : ; done
@@ -180,14 +164,36 @@ until hostname_selector; do : ; done
 until userpass_selector; do : ; done
 until rootpass_selector; do : ; done
 
+# Clear the partition table
+echo "Clearing the partition table on $DISK..."
+sgdisk --zap-all "$DISK"
+
+# Create the EFI partition (1GB)
+echo "Creating 1GB EFI partition..."
+sgdisk --new=1:0:+1G --typecode=1:EF00 --change-name=1:"ESP" "$DISK"
+
+# Create the CRYPTROOT partition with the rest of the disk
+echo "Creating CRYPTROOT partition with remaining space..."
+sgdisk --new=2:0:0 --typecode=2:8300 --change-name=2:"CRYPTROOT" "$DISK"
+
+# Print the new partition table
+echo "New partition table:"
+sgdisk --print "$DISK"
+
+ESP="/dev/disk/by-partlabel/ESP"
+CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
+
 # Informing the Kernel of the changes.
 info_print "Informing the Kernel about the disk changes."
 partprobe "$DISK"
 
+info_print "Formatting the EFI Partition as FAT32."
+mkfs.fat -F 32 "$ESP" &>/dev/null
+
 # Creating a LUKS Container for the root partition.
 info_print "Creating LUKS Container for the root partition."
-echo -n "$password" | cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 2000 --pbkdf argon2id --hash sha3-512 "CRYPTROOT" -d - &>/dev/null
-echo -n "$password" | cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open "CRYPTROOT" cryptroot -d -
+echo -n "$password" | cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 2000 --pbkdf argon2id --hash sha3-512 "$CRYPTROOT" -d - &>/dev/null
+echo -n "$password" | cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open "$CRYPTROOT" cryptroot -d -
 BTRFS="/dev/mapper/cryptroot"
 
 # Formatting the LUKS Container as BTRFS.
@@ -398,7 +404,7 @@ mv /boot/EFI/refind/themes/refind-dreary-tmp /boot/EFI/refind/themes/refind-drea
 EOF
 
 info_print "Configuring refind.conf"
-UUID=$(blkid -s UUID -o value "CRYPTROOT")
+UUID=$(blkid -s UUID -o value "$CRYPTROOT")
 rotation_kernel_option=''
 if [[ $rotation_choice != 0 ]]; then
     rotation_kernel_option="fbcon=rotate:$rotation_choice"
