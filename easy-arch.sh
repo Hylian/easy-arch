@@ -186,8 +186,8 @@ partprobe "$DISK"
 
 # Creating a LUKS Container for the root partition.
 info_print "Creating LUKS Container for the root partition."
-echo -n "$password" | cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 2000 --pbkdf argon2id --hash sha3-512 "$CRYPTROOT" -d - &>/dev/null
-echo -n "$password" | cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open "$CRYPTROOT" cryptroot -d -
+echo -n "$password" | cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 2000 --pbkdf argon2id --hash sha3-512 "CRYPTROOT" -d - &>/dev/null
+echo -n "$password" | cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open "CRYPTROOT" cryptroot -d -
 BTRFS="/dev/mapper/cryptroot"
 
 # Formatting the LUKS Container as BTRFS.
@@ -398,7 +398,7 @@ mv /boot/EFI/refind/themes/refind-dreary-tmp /boot/EFI/refind/themes/refind-drea
 EOF
 
 info_print "Configuring refind.conf"
-UUID=$(blkid -s UUID -o value $CRYPTROOT)
+UUID=$(blkid -s UUID -o value "CRYPTROOT")
 rotation_kernel_option=''
 if [[ $rotation_choice != 0 ]]; then
     rotation_kernel_option="fbcon=rotate:$rotation_choice"
