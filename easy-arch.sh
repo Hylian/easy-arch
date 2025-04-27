@@ -313,6 +313,9 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
+echo "Changing to user."
+su $username
+
 echo "Installing paru."
 cd /tmp
 git clone https://aur.archlinux.org/paru.git
