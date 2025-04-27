@@ -313,6 +313,10 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
+info_print "Adding the user $username to the system with root privilege."
+echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
+useradd -m -G wheel -s /bin/bash "$username"
+
 echo "Changing to user."
 su $username
 
@@ -413,13 +417,8 @@ info_print "Setting root password."
 echo "root:$rootpass" | arch-chroot /mnt chpasswd
 
 # Setting user password.
-if [[ -n "$username" ]]; then
-    echo "%wheel ALL=(ALL:ALL) ALL" > /mnt/etc/sudoers.d/wheel
-    info_print "Adding the user $username to the system with root privilege."
-    arch-chroot /mnt useradd -m -G wheel -s /bin/bash "$username"
-    info_print "Setting user password for $username."
-    echo "$username:$userpass" | arch-chroot /mnt chpasswd
-fi
+info_print "Setting user password for $username."
+echo "$username:$userpass" | arch-chroot /mnt chpasswd
 
 # Laptop Battery Life Improvements
 echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf
