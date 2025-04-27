@@ -313,23 +313,6 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
-# Optimize Makepkg
-echo "Optimizing makepkg flags."
-sed -i 's/^CFLAGS.*$/CFLAGS="-march=native -mtune=native -O2 -pipe -fstack-protector-strong --param=ssp-buffer-size=4 -fno-plt"/' /etc/makepkg.conf
-sed -i 's/^CXXFLAGS.*$/CXXFLAGS="${CFLAGS}"/' /etc/makepkg.conf
-sed -i 's/^#RUSTFLAGS.*$/RUSTFLAGS="-C opt-level=2 -C target-cpu=native"/' /etc/makepkg.conf
-sed -i 's/^#BUILDDIR.*$/BUILDDIR=\/tmp\/makepkg makepkg/' /etc/makepkg.conf
-sed -i 's/^#MAKEFLAGS.*$/MAKEFLAGS="-j$(getconf _NPROCESSORS_ONLN) --quiet"/' /etc/makepkg.conf
-sed -i 's/^COMPRESSGZ.*$/COMPRESSGZ=(pigz -c -f -n)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSBZ2.*$/COMPRESSBZ2=(pbzip2 -c -f)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSXZ.*$/COMPRESSXZ=(xz -T "$(getconf _NPROCESSORS_ONLN)" -c -z --best -)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSZST.*$/COMPRESSZST=(zstd -c -z -q --ultra -T0 -22 -)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSLZ.*$/COMPRESSLZ=(lzip -c -f)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSLRZ.*$/COMPRESSLRZ=(lrzip -9 -q)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSLZO.*$/COMPRESSLZO=(lzop -q --best)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSZ.*$/COMPRESSZ=(compress -c -f)/' /etc/makepkg.conf
-sed -i 's/^COMPRESSLZ4.*$/COMPRESSLZ4=(lz4 -q --best)/' /etc/makepkg.conf
-
 echo "Installing paru."
 cd /tmp
 git clone https://aur.archlinux.org/paru.git
