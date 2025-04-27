@@ -236,14 +236,10 @@ mount "${ESP}" /mnt/boot/
 # Checking the microcode to install.
 microcode_detector
 
-rm -rf /mnt/boot/efi/EFI/refind
-rm -rf /mnt/boot/EFI/refind
-rm -f /mnt/boot/amd-ucode.img
-
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
 sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /etc/pacman.conf
-pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr refind reflector snap-pac zram-generator sudo base-devel gcc git
+pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr reflector snap-pac zram-generator sudo base-devel gcc git
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
@@ -282,9 +278,6 @@ sed -i 's/MODULES=()/MODULES=(amdgpu)/' /mnt/etc/mkinitcpio.conf
 sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' /mnt/etc/mkinitcpio.conf
 sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' /mnt/etc/mkinitcpio.conf
 sed -i 's/^HOOKS=.*$/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' /mnt/etc/mkinitcpio.conf
-
-# Configuring the system.
-info_print "Configuring the system (timezone, system clock, initramfs, Snapper, refind)."
 
 echo 'PRUNENAMES = ".snapshots"' >> /mnt/etc/updatedb.conf
 
@@ -344,8 +337,6 @@ cd paru
 makepkg -si
 cd .. && sudo rm -dR paru
 
-refind-install
-
 echo "Installing user applications."
 paru -S --noconfirm 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache chezmoi cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base fonts-meta-extended-lt fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayfx-git swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wdisplays wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions
 
@@ -394,42 +385,42 @@ curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts
 gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
 rm btrfs_map_physical.c
 mv btrfs_map_physical /usr/local/bin
-
-mkdir -p /boot/EFI/refind/themes
-
-git clone https://github.com/dheishman/refind-dreary.git /boot/EFI/refind/themes/refind-dreary
-mv /boot/EFI/refind/themes/refind-dreary/highres /boot/EFI/refind/themes/refind-dreary-tmp
-rm -dR /boot/EFI/refind/themes/refind-dreary
-mv /boot/EFI/refind/themes/refind-dreary-tmp /boot/EFI/refind/themes/refind-dreary
 EOF
 
-info_print "Configuring refind.conf"
+info_print "Configuring bootloader."
 UUID=$(blkid -s UUID -o value "$CRYPTROOT")
 rotation_kernel_option=''
 if [[ $rotation_choice != 0 ]]; then
     rotation_kernel_option="fbcon=rotate:$rotation_choice"
 fi
-cat << EOF > /mnt/boot/EFI/refind/refind.conf
-resolution 3
-enable_mouse
-use_graphics_for linux
-scanfor internal,manual,external
 
-menuentry "Arch Linux" {
-    icon     icon /EFI/refind/themes/refind-dreary/icons/os_arch.png
-    volume   "Arch Linux"
-    loader   /vmlinuz-linux
-    initrd   /initramfs-linux.img
-    options  "rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs resume_offset=$( echo "$(/mnt/usr/local/bin/btrfs_map_physical /mnt/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option"
-    submenuentry "Boot using fallback initramfs" {
-        initrd /boot/initramfs-linux-fallback.img
-    }
-}
+arch-chroot /mnt bootctl install
 
-include themes/refind-dreary/theme.conf
+cat << EOF > /mnt/etc/pacman.d/hooks/95-systemd-boot.hook
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = systemd
+
+[Action]
+Description = Gracefully upgrading systemd-boot...
+When = PostTransaction
+Exec = /usr/bin/systemctl restart systemd-boot-update.service
 EOF
 
-arch-chroot /mnt refind-install
+cat << EOF > /mnt/boot/loader/loader.conf
+default  arch.conf
+timeout  0
+console-mode max
+editor   no
+EOF
+
+cat << EOF > /mnt/boot/loader/entries/arch.conf
+title   Arch Linux
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options rd.luks.name=$UUID=cryptroot root=/dev/mapper/cryptroot rootflags=subvol=@ rootfstype=btrfs resume_offset=$( echo "$(/mnt/usr/local/bin/btrfs_map_physical /mnt/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img $rotation_kernel_option
+EOF
 
 # Setting root password.
 info_print "Setting root password."
