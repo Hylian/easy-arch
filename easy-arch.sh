@@ -292,6 +292,7 @@ echo "Setting timezone to New_York."
 ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime &>/dev/null
 
 # Setting up clock.
+echo "Setting up clock."
 hwclock --systohc
 
 # Generating locales.
@@ -302,9 +303,7 @@ locale-gen &>/dev/null
 echo "Generating initramfs."
 mkinitcpio -P
 
-echo "Installing and configuring snapper."
-sudo pacman -S snapper
-
+echo "Configuring snapper."
 # Snapper configuration.
 umount /.snapshots
 rm -r /.snapshots
@@ -315,10 +314,11 @@ mount -a &>/dev/null
 chmod 750 /.snapshots
 
 # Optimize Makepkg
+echo "Optimizing makepkg flags."
 sed -i 's/^CFLAGS.*$/CFLAGS="-march=native -mtune=native -O2 -pipe -fstack-protector-strong --param=ssp-buffer-size=4 -fno-plt"/' /etc/makepkg.conf
 sed -i 's/^CXXFLAGS.*$/CXXFLAGS="${CFLAGS}"/' /etc/makepkg.conf
 sed -i 's/^#RUSTFLAGS.*$/RUSTFLAGS="-C opt-level=2 -C target-cpu=native"/' /etc/makepkg.conf
-sed -i 's/^#BUILDDIR.*$/BUILDDIR=\/tmp\/makepkg makepkg/' etc/makepkg.conf
+sed -i 's/^#BUILDDIR.*$/BUILDDIR=\/tmp\/makepkg makepkg/' /etc/makepkg.conf
 sed -i 's/^#MAKEFLAGS.*$/MAKEFLAGS="-j$(getconf _NPROCESSORS_ONLN) --quiet"/' /etc/makepkg.conf
 sed -i 's/^COMPRESSGZ.*$/COMPRESSGZ=(pigz -c -f -n)/' /etc/makepkg.conf
 sed -i 's/^COMPRESSBZ2.*$/COMPRESSBZ2=(pbzip2 -c -f)/' /etc/makepkg.conf
@@ -372,7 +372,7 @@ mkdir -p /mnt/etc/systemd/system/getty@tty.service.d/
 cat > /mnt/etc/systemd/system/getty@tty.service.d/autologin.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin $username - $TERM
+ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin $username - zsh
 Type=simple
 Environment=XDG_SESSION_TYPE=wayland
 EOF
