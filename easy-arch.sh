@@ -313,7 +313,7 @@ mkdir /.snapshots
 mount -a &>/dev/null
 chmod 750 /.snapshots
 
-info_print "Adding the user $username to the system with root privilege."
+echo "Adding the user $username to the system with root privilege."
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 useradd -m -G wheel -s /bin/bash "$username"
 
