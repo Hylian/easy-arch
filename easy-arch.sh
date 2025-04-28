@@ -239,7 +239,7 @@ microcode_detector
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
 sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /etc/pacman.conf
-pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr reflector snap-pac zram-generator sudo base-devel gcc git
+pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr reflector snap-pac zram-generator sudo base-devel gcc git rustup cargo
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
