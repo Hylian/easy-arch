@@ -317,6 +317,9 @@ echo "Adding the user $username to the system with root privilege."
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 useradd -m -G wheel -s /bin/bash "$username"
 
+echo "Setting user password for $username."
+echo "$username:$userpass" | arch-chroot /mnt chpasswd
+
 echo "Changing to user."
 su $username
 
@@ -416,9 +419,6 @@ EOF
 info_print "Setting root password."
 echo "root:$rootpass" | arch-chroot /mnt chpasswd
 
-# Setting user password.
-info_print "Setting user password for $username."
-echo "$username:$userpass" | arch-chroot /mnt chpasswd
 
 # Laptop Battery Life Improvements
 echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf
