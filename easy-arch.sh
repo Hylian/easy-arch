@@ -318,7 +318,7 @@ echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 useradd -m -G wheel -s /bin/bash "$username"
 
 echo "Setting user password for $username."
-echo "$username:$userpass" | arch-chroot /mnt chpasswd
+echo "$username:$userpass" | chpasswd
 
 echo "Changing to user."
 su $username
