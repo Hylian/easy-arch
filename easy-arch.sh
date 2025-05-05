@@ -186,6 +186,7 @@ CRYPTROOT="/dev/disk/by-partlabel/CRYPTROOT"
 # Informing the Kernel of the changes.
 info_print "Informing the Kernel about the disk changes."
 partprobe "$DISK"
+sleep 1
 
 info_print "Formatting the EFI Partition as FAT32."
 mkfs.fat -F 32 "$ESP"
