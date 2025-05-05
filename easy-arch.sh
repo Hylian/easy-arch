@@ -230,7 +230,7 @@ chmod 750 /mnt/root
 
 # Create Swapfile
 SWAP_SIZE=$(( $(free -g | awk '/^Mem:/{print $2}') + 4 ))
-btrfs filesystem mkswapfile --size '$SWAP_SIZE'GiB --uuid clear /mnt/.swapvol/swapfile
+btrfs filesystem mkswapfile --size "$SWAP_SIZE"GiB --uuid clear /mnt/.swapvol/swapfile
 swapon /mnt/.swapvol/swapfile
 
 mount "${ESP}" /mnt/boot/
