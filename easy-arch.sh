@@ -230,7 +230,7 @@ chmod 750 /mnt/root
 
 # Create Swapfile
 SWAP_SIZE=$(( $(free -g | awk '/^Mem:/{print $2}') + 4 ))
-btrfs filesystem mkswapfile --size "$SWAP_SIZE"GiB --uuid clear /mnt/.swapvol/swapfile
+btrfs filesystem mkswapfile --size "$SWAP_SIZE"G --uuid clear /mnt/.swapvol/swapfile
 swapon /mnt/.swapvol/swapfile
 
 mount "${ESP}" /mnt/boot/
@@ -316,31 +316,32 @@ mount -a &>/dev/null
 chmod 750 /.snapshots
 
 echo "Adding the user $username to the system with root privilege."
-echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 useradd -m -G wheel -s /bin/bash "$username"
+
+echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo
 
 echo "Setting user password for $username."
 echo "$username:$userpass" | chpasswd
 
 echo "Installing paru."
-rustup default stable
+sudo -n -u $username rustup default stable
 cd /tmp
-git clone https://aur.archlinux.org/paru.git
-cd paru
-sudo -u $username makepkg -si
-cd .. && sudo rm -dR paru
-
-echo "Installing user applications."
-sudo -u $username paru -S --noconfirm --nocheck --skipreview cargo 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache chezmoi cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base fonts-meta-extended-lt fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayfx-git swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wdisplays wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions
-
-echo "Dotfile setup..."
-cd ~
-chezmoi init --apply Hylian
+sudo -n -u $username git clone https://aur.archlinux.org/paru.git
+cd paru;
+sudo -n -u $username makepkg --noconfirm -si;
+cd .. && sudo rm -dR paru;
 EOF
 info_print "Exiting chroot."
 # ==========
 # END CHROOT
 # ==========
+
+echo "Installing user applications.";
+arch-chroot /mnt sudo -n -u $username paru -S --skipreview swayfx;
+arch-chroot /mnt sudo -n -u $username paru -S --skipreview cargo 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache chezmoi cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base foot fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions;
+
+echo "Dotfile setup..."
+arch-chroot /mnt sudo -n -u $username chezmoi init --apply Hylian
 
 mkdir /mnt/etc/pacman.d/hooks
 
