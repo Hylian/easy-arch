@@ -229,7 +229,8 @@ mount -o noatime,nodiratime,compress=zstd,compress-force=zstd:3,commit=120,ssd,d
 chmod 750 /mnt/root
 
 # Create Swapfile
-btrfs filesystem mkswapfile --size 68g --uuid clear /mnt/.swapvol/swapfile
+SWAP_SIZE=$(( $(free -g | awk '/^Mem:/{print $2}') + 4 ))
+btrfs filesystem mkswapfile --size '$SWAP_SIZE'GiB --uuid clear /mnt/.swapvol/swapfile
 swapon /mnt/.swapvol/swapfile
 
 mount "${ESP}" /mnt/boot/
