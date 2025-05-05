@@ -188,7 +188,7 @@ info_print "Informing the Kernel about the disk changes."
 partprobe "$DISK"
 
 info_print "Formatting the EFI Partition as FAT32."
-mkfs.fat -F 32 "$ESP" &>/dev/null
+mkfs.fat -F 32 "$ESP"
 
 # Creating a LUKS Container for the root partition.
 info_print "Creating LUKS Container for the root partition."
@@ -198,7 +198,7 @@ BTRFS="/dev/mapper/cryptroot"
 
 # Formatting the LUKS Container as BTRFS.
 info_print "Formatting the LUKS container as BTRFS."
-mkfs.btrfs "$BTRFS" &>/dev/null
+mkfs.btrfs "$BTRFS"
 mount "$BTRFS" /mnt
 
 # Creating BTRFS subvolumes.
