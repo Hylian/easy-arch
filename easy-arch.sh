@@ -137,6 +137,9 @@ hostname_selector () {
     return 0
 }
 
+info_print "Starting ssh."
+systemctl start sshd.service
+
 rotation_selector
 
 # Setting up keyboard layout.
@@ -241,7 +244,7 @@ microcode_detector
 # Pacstrap (setting up a base sytem onto the new root).
 info_print "Installing the base system (it may take a while)."
 sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /etc/pacman.conf
-pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr reflector snap-pac zram-generator sudo base-devel gcc git rustup cargo
+pacstrap -K /mnt base linux "$microcode" linux-firmware linux-headers btrfs-progs mesa rsync efibootmgr reflector snap-pac zram-generator sudo base-devel gcc git rustup cargo zsh
 
 # Setting up the hostname.
 echo "$hostname" > /mnt/etc/hostname
@@ -316,7 +319,7 @@ mount -a &>/dev/null
 chmod 750 /.snapshots
 
 echo "Adding the user $username to the system with root privilege."
-useradd -m -G wheel -s /bin/bash "$username"
+useradd -m -G wheel -s /bin/zsh "$username"
 
 echo '%wheel ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo
 
@@ -338,14 +341,13 @@ info_print "Exiting chroot."
 
 echo "Installing user applications.";
 arch-chroot /mnt sudo -n -u $username paru -S --skipreview swayfx;
-arch-chroot /mnt sudo -n -u $username paru -S --skipreview cargo 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache chezmoi cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base foot fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh zsh-autosuggestions;
+arch-chroot /mnt sudo -n -u $username paru -S --skipreview cargo 1password 1password-cli 7zip adobe-source-code-pro-fonts adobe-source-sans-fonts adwaita-cursors adwaita-icon-theme alsa-utils antigen anything-sync-daemon arm-none-eabi-binutils arm-none-eabi-gcc arm-none-eabi-gdb arm-none-eabi-newlib avahi bat bear betterbird-bin binutils binwalk blueman bluez bluez-libs breeze breeze-gtk breeze-icons bubblewrap catppuccin-gtk-theme-frappe ccache chezmoi cifs-utils clang cmake curl dfu-programmer dfu-util direnv discord dolphin dolphin-plugins dropbox dunst elfutils esptool ethtool everforest-gtk-theme-git expac eza fd firefox fonts-meta-base foot fzf ghostty ghostty-shell-integration ghostty-terminfo gimp git git-delta gnome-calculator gnome-disk-utility gnome-keyring grimshot handbrake hexyl htop hunspell hunspell-en_us imagemagick imv jq kanshi mpv neofetch neovim obsidian parted pavucontrol qdirstat raindrop ripgrep rpi-imager rsync signal-desktop starship stgit strace suitesparse swaybg swayidle swaylock tag-ag tex-gyre-fonts texinfo tofi ttc-iosevka ttf-anonymous-pro ttf-bitstream-vera ttf-caladea ttf-carlito ttf-cascadia-code ttf-courier-prime ttf-dejavu ttf-droid ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-font-awesome ttf-gelasio ttf-gelasio-ib ttf-hack ttf-heuristica ttf-ibm-plex ttf-ibmplex-mono-nerd ttf-impallari-cantora ttf-iosevka-nerd ttf-liberation ttf-merriweather ttf-merriweather-sans ttf-opensans ttf-oswald ttf-quintessential ttf-signika ttf-ubuntu-font-family ttf-ubuntu-mono-nerd ttf-unifont udiskie udisks2 unrar unzip waybar wget wireplumber wl-clipboard wol wpa_supplicant xdg-desktop-portal-wlr zathura zathura-pdf-mupdf zellij zen-browser-bin zip zola zotero-bin zoxide zsh-autosuggestions;
 
-echo "Dotfile setup..."
+echo "Chezmoi dotfile setup."
 arch-chroot /mnt sudo -n -u $username chezmoi init --apply Hylian
 
-mkdir /mnt/etc/pacman.d/hooks
-
 info_print "Creating /etc/pacman.d/hooks/50-bootbackup.hook to backup /boot when pacman transactions are made."
+mkdir /mnt/etc/pacman.d/hooks
 cat > /mnt/etc/pacman.d/hooks/50-bootbackup.hook <<EOF
 [Trigger]
 Operation = Upgrade
@@ -361,19 +363,8 @@ When = PostTransaction
 Exec = /usr/bin/rsync -a --delete /boot /.bootbackup
 EOF
 
-info_print "Enabling autologin."
-mkdir -p /mnt/etc/systemd/system/getty@tty.service.d/
-cat > /mnt/etc/systemd/system/getty@tty.service.d/autologin.conf <<EOF
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin $username - zsh
-Type=simple
-Environment=XDG_SESSION_TYPE=wayland
-EOF
-
-info_print "Entering chroot."
+info_print "Mapping btrfs hibernation offset."
 arch-chroot /mnt /bin/bash -e <<EOF
-
 cd /tmp
 curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts/btrfs_map_physical.c
 gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
@@ -420,11 +411,10 @@ EOF
 info_print "Setting root password."
 echo "root:$rootpass" | arch-chroot /mnt chpasswd
 
-
 # Laptop Battery Life Improvements
-echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf
-if [ $(lsmod | grep '^iwl.vm' | awk '{print $1}') == "iwlmvm" ]; then echo "options iwlwifi power_save=1" > /mnt/etc/modprobe.d/iwlwifi.conf; echo "options iwlmvm power_scheme=3" >> /mnt/etc/modprobe.d/iwlwifi.conf; fi
-if [ $(lsmod | grep '^iwl.vm' | awk '{print $1}') == "iwldvm" ]; then echo "options iwldvm force_cam=0" >> /mnt/etc/modprobe.d/iwlwifi.conf; fi
+echo "vm.dirty_writeback_centisecs = 6000" > /mnt/etc/sysctl.d/dirty.conf;
+if [[ $(lsmod | grep '^iwl.vm' | awk '{print $1}') == "iwlmvm" ]]; then echo "options iwlwifi power_save=1" > /mnt/etc/modprobe.d/iwlwifi.conf; echo "options iwlmvm power_scheme=3" >> /mnt/etc/modprobe.d/iwlwifi.conf; fi;
+if [[ $(lsmod | grep '^iwl.vm' | awk '{print $1}') == "iwldvm" ]]; then echo "options iwldvm force_cam=0" >> /mnt/etc/modprobe.d/iwlwifi.conf; fi;
 
 # ZRAM configuration.
 info_print "Configuring ZRAM."
@@ -433,16 +423,31 @@ cat > /mnt/etc/systemd/zram-generator.conf <<EOF
 zram-size = min(ram, 8192)
 EOF
 
-# Pacman eye-candy features.
+info_print "Enabling autologin."
+mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d/
+cat > /mnt/etc/systemd/system/getty@tty1.service.d/autologin.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --skip-login --nonewline --noissue --autologin $username --noclear %I $TERM
+Type=simple
+Environment=XDG_SESSION_TYPE=wayland
+EOF
+
+arch-chroot /mnt /bin/bash -e <<EOF
+cd /tmp
+curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts/btrfs_map_physical.c
+gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
+rm btrfs_map_physical.c
+mv btrfs_map_physical /usr/local/bin
+EOF
+
 info_print "Enabling colours, animations, and parallel downloads for pacman."
 sed -Ei 's/^#(Color)$/\1\nILoveCandy/;s/^#(ParallelDownloads).*/\1 = 10/' /mnt/etc/pacman.conf
 
-# Enabling various services.
 info_print "Enabling Reflector, automatic snapshots, BTRFS scrubbing and systemd-oomd."
 services=(reflector.timer snapper-timeline.timer snapper-cleanup.timer btrfs-scrub@-.timer btrfs-scrub@home.timer btrfs-scrub@var-log.timer btrfs-scrub@\\x2esnapshots.timer systemd-oomd)
 for service in "${services[@]}"; do
     systemctl enable "$service" --root=/mnt &>/dev/null
 done
 
-# Finishing up.
 info_print "Done!"
